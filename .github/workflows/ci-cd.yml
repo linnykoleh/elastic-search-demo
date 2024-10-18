@@ -11,7 +11,8 @@ jobs:
         image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
         ports:
           - 9200:9200
-        options: --health-cmd='curl -f http://localhost:9200/_cluster/health || exit 1'
+        options: >-
+          --health-cmd="curl -f http://localhost:9200/_cluster/health || exit 1"
           --health-interval=5s
           --health-timeout=10s
           --health-retries=12
@@ -32,7 +33,7 @@ jobs:
 
       - name: Verify Elasticsearch Health
         run: |
-          curl -X GET "localhost:9200/_cluster/health?pretty"
+          curl -X GET "http://localhost:9200/_cluster/health?pretty"
 
       - name: Load Data into Elasticsearch
         run: |
@@ -60,5 +61,5 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no $USER@$HOST "mkdir -p $APP_PATH"
           scp -o StrictHostKeyChecking=no -r * $USER@$HOST:$APP_PATH
-          ssh -o StrictHostKeyChecking=no $USER@$HOST "cd $APP_PATH && sudo systemctl restart your-app-service"
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "cd $APP_PATH && sudo systemctl restart projector_elastic.service"
 
