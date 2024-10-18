@@ -70,3 +70,4 @@ jobs:
             cd $APP_PATH &&
             /usr/bin/python3 WordsGenerator.py
           "
+
