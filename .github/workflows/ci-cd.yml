@@ -1,0 +1,68 @@
+name: CI/CD Pipeline for Elasticsearch
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-load:
+    runs-on: ubuntu-latest
+
+    services:
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+        ports:
+          - 9200:9200
+        options: --health-cmd='curl -f http://localhost:9200/_cluster/health || exit 1'
+          --health-interval=5s
+          --health-timeout=10s
+          --health-retries=12
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install elasticsearch
+
+      - name: Verify Elasticsearch Health
+        run: |
+          curl -X GET "localhost:9200/_cluster/health?pretty"
+
+      - name: Load Data into Elasticsearch
+        run: |
+          python load_data.py
+
+  deploy:
+    needs: build-and-load
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Deploy Code to EC2
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+          APP_PATH: ${{ secrets.APP_PATH }}
+        run: |
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "mkdir -p $APP_PATH"
+          scp -o StrictHostKeyChecking=no -r * $USER@$HOST:$APP_PATH
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "cd $APP_PATH && sudo systemctl restart your-app-service"
+
