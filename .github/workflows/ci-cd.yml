@@ -1,9 +1,9 @@
-name: CI/CD Pipeline for Dockerized Elasticsearch and EC2 Deployment
+name: CI/CD Pipeline for WordsGenerator and Dockerized Elasticsearch
 
 on: push
 
 jobs:
-  build-and-load:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +25,7 @@ jobs:
             sudo chmod +x /usr/local/bin/docker-compose
           "
 
-      - name: Copy Docker Compose Files to EC2
+      - name: Copy Docker Compose File to EC2
         env:
           HOST: ${{ secrets.EC2_HOST }}
           USER: ${{ secrets.EC2_USER }}
@@ -33,7 +33,7 @@ jobs:
         run: |
           scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no docker-compose.yml $USER@$HOST:$APP_PATH/
 
-      - name: Deploy and Start Docker Services
+      - name: Start Docker Services
         env:
           HOST: ${{ secrets.EC2_HOST }}
           USER: ${{ secrets.EC2_USER }}
@@ -50,7 +50,7 @@ jobs:
           USER: ${{ secrets.EC2_USER }}
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $USER@$HOST "
-            curl -X GET 'localhost:9200/_cluster/health?pretty'
+            curl -X GET 'http://localhost:9200/_cluster/health?pretty'
           "
 
       - name: Run WordsGenerator.py on EC2
