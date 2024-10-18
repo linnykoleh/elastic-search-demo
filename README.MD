@@ -381,3 +381,98 @@ curl -X GET "localhost:9200/autocomplete_index/_search?pretty" -H 'Content-Type:
 }
 ```
 
+# Deploy to EC2 Instance with CI/CD github actions
+
+## 1. Create a new EC2 instance
+
+![1.png](images/1.png)
+
+## 2. Create secret keys in the repository settings
+
+![2.png](images/2.png)
+
+## 3. Create a new file in the repository with the name .github/workflows/ci-cd.yml
+
+```yaml
+name: CI/CD Pipeline for Elasticsearch
+
+on: push
+
+jobs:
+  build-and-load:
+    runs-on: ubuntu-latest
+
+    services:
+      elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd="curl -f http://localhost:9200/_cluster/health || exit 1"
+          --health-interval=5s
+          --health-timeout=10s
+          --health-retries=12
+        env:
+          discovery.type: single-node
+          ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install elasticsearch
+
+      - name: Verify Elasticsearch Health
+        run: |
+          curl -X GET "http://localhost:9200/_cluster/health?pretty"
+
+      - name: Load Data into Elasticsearch
+        run: |
+          python WordsGenerator.py
+
+  deploy:
+    needs: build-and-load
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Deploy Code to EC2
+        env:
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ${{ secrets.EC2_USER }}
+          APP_PATH: ${{ secrets.APP_PATH }}
+        run: |
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "mkdir -p $APP_PATH"
+          scp -o StrictHostKeyChecking=no -r * $USER@$HOST:$APP_PATH
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "cd $APP_PATH && sudo systemctl restart projector_elastic.service"
+```
+
+## 4. CI/CD Pipeline
+
+https://github.com/linnykoleh/elastic-search-demo/actions
+
+![3.png](images/3.png)
+
+![5.png](images/5.png)
+
+![6.png](images/6.png)
+
+## 5. Deployed to EC2 Instance
+
+![4.png](images/4.png)
