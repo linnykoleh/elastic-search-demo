@@ -57,19 +57,26 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Debug SSH Connection
-        run: |
-          ssh -v -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "echo 'SSH connection successful'"
-
-      - name: Deploy Code to EC2
+      - name: Deploy and Install Dependencies on EC2
         env:
           HOST: ${{ secrets.EC2_HOST }}
           USER: ${{ secrets.EC2_USER }}
           APP_PATH: ${{ secrets.APP_PATH }}
         run: |
-          ssh -o StrictHostKeyChecking=no $USER@$HOST "mkdir -p $APP_PATH"
-          scp -o StrictHostKeyChecking=no -r * $USER@$HOST:$APP_PATH
-          ssh -o StrictHostKeyChecking=no $USER@$HOST "cd $APP_PATH && sudo systemctl restart projector_elastic.service"
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $USER@$HOST "
+            mkdir -p $APP_PATH &&
+            sudo yum install python3-pip -y &&
+            python3 -m pip install virtualenv &&
+            cd $APP_PATH &&
+            virtualenv venv &&
+            source venv/bin/activate &&
+            pip install elasticsearch &&
+            if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          "
 
-
-
+      - name: Restart Service on EC2
+        run: |
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd $APP_PATH &&
+            sudo systemctl restart projector_elastic.service
+          "
