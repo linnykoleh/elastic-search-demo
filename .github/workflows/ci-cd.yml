@@ -67,3 +67,4 @@ jobs:
           ssh -o StrictHostKeyChecking=no $USER@$HOST "cd $APP_PATH && sudo systemctl restart projector_elastic.service"
 
 
+
