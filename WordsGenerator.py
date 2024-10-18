@@ -1,4 +1,5 @@
 from elasticsearch import Elasticsearch, helpers
+import sys
 
 # Initialize the Elasticsearch client
 es = Elasticsearch(
@@ -20,6 +21,9 @@ def generate_data(file_path):
                 }
             }
 
-helpers.bulk(es, generate_data('words.txt'))
-
-print("Bulk insert complete.")
+try:
+    helpers.bulk(es, generate_data('words.txt'))
+    print("Bulk insert complete.")
+except Exception as e:
+    print(f"Error during bulk insert: {e}")
+    sys.exit(1)
