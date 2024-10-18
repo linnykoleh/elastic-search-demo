@@ -40,7 +40,7 @@ jobs:
 
       - name: Load Data into Elasticsearch
         run: |
-          python load_data.py
+          python WordsGenerator.py
 
   deploy:
     needs: build-and-load
